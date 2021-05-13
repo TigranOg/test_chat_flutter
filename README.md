@@ -1,0 +1,1 @@
+Test flutter project based on Flutter-Chat-App https://github.com/MohamadSobhy/Flutter-Chat-App
