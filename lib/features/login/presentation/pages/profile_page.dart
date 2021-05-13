@@ -287,16 +287,18 @@ class _ProfilePageState extends State<ProfilePage> {
   void _performUnFriendRequest() async {
     final currentUserId = _getCurrentUserData().id;
     final isConfirmed = await showDialog(
-      child: CustomConfirmationDialog(
-        title: 'Do you want to unfriend this user?',
-        onCancelPressed: () {
-          Navigator.of(context).pop(false);
-        },
-        onOkPressed: () {
-          Navigator.of(context).pop(true);
-        },
-      ),
       context: context,
+      builder: (context) {
+        return CustomConfirmationDialog(
+          title: 'Do you want to unfriend this user?',
+          onCancelPressed: () {
+            Navigator.of(context).pop(false);
+          },
+          onOkPressed: () {
+            Navigator.of(context).pop(true);
+          },
+        );
+      },
     );
     if (isConfirmed != null && isConfirmed) {
       Provider.of<UsersProvider>(context, listen: false)
