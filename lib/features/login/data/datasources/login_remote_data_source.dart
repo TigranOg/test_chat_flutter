@@ -75,7 +75,7 @@ abstract class LoginRemoteDataSource {
 class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
   final GoogleSignIn googleSignIn;
   final FirebaseAuth firebaseAuth;
-  final Firestore firestoreInstance;
+  final FirebaseFirestore firestoreInstance;
   final FirebaseStorage storage;
   final FacebookLogin facebookLogin;
   final FirebaseMessaging firebaseMessaging;
@@ -102,12 +102,12 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
 
       GoogleSignInAuthentication authentication = await account.authentication;
 
-      AuthCredential authCredential = GoogleAuthProvider.getCredential(
+      AuthCredential authCredential = GoogleAuthProvider.credential(
         idToken: authentication.idToken,
         accessToken: authentication.accessToken,
       );
 
-      FirebaseUser user =
+      User user =
           (await firebaseAuth.signInWithCredential(authCredential)).user;
 
       return await _validateUser(user);
@@ -122,12 +122,12 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
     return null;
   }
 
-  Future<UserModel> _validateUser(FirebaseUser user) async {
+  Future<UserModel> _validateUser(User user) async {
     if (user != null) {
       QuerySnapshot result = await firestoreInstance
           .collection('users')
           .where('id', isEqualTo: user.uid)
-          .getDocuments();
+          .get();
 
       UserModel userData = UserModel(
         id: user.uid,
@@ -135,15 +135,15 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
         email: user.email,
         password: '',
         phoneNumber: user.phoneNumber,
-        photoUrl: user.photoUrl,
+        photoUrl: user.photoURL,
       );
 
-      if (result.documents.length == 0) {
+      if (result.docs.length == 0) {
         _storeUserDataOnServer(userData);
       } else {
         final userDocument = await _getUserDataFromServer(userData.id);
 
-        userData = UserModel.fromJson(userDocument.data);
+        userData = UserModel.fromJson(userDocument.data());
       }
       return userData;
     } else {
@@ -171,8 +171,8 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
       switch (result.status) {
         case FacebookLoginStatus.loggedIn:
           {
-            final authCredential = FacebookAuthProvider.getCredential(
-              accessToken: result.accessToken.token,
+            final authCredential = FacebookAuthProvider.credential(
+                result.accessToken.token
             );
 
             final authResult =
@@ -221,7 +221,7 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
 
       final userDocument = await _getUserDataFromServer(authResult.user.uid);
 
-      final userModel = UserModel.fromJson(userDocument.data);
+      final userModel = UserModel.fromJson(userDocument.data());
 
       return userModel;
     } catch (error) {
@@ -235,7 +235,7 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
   }
 
   Future<DocumentSnapshot> _getUserDataFromServer(String userID) {
-    return firestoreInstance.collection('users').document(userID).get();
+    return firestoreInstance.collection('users').doc(userID).get();
   }
 
   @override
@@ -266,7 +266,7 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
   @override
   Future<String> deleteAccount(UserModel user) async {
     try {
-      final currentUser = await firebaseAuth.currentUser();
+      final currentUser = firebaseAuth.currentUser;
 
       await _deleteUserDataFromServer(user);
 
@@ -280,7 +280,7 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
   @override
   Future<String> updateAccountInfo(UserModel user) async {
     try {
-      final currentUser = await firebaseAuth.currentUser();
+      final currentUser = firebaseAuth.currentUser;
 
       final preferences = serviceLocator<SharedPreferences>();
       if (LoginMethod.values[preferences.getInt('login_method')] ==
@@ -310,60 +310,53 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
   Future<void> _storeUserDataOnServer(UserModel userData) async {
     await firestoreInstance
         .collection('users')
-        .document(userData.id)
-        .setData(userData.toMap());
+        .doc(userData.id)
+        .set(userData.toMap());
   }
 
   Future<void> _updateUserDataOnServer(UserModel userData) async {
     await firestoreInstance
         .collection('users')
-        .document(userData.id)
-        .updateData(userData.toMap());
+        .doc(userData.id)
+        .update(userData.toMap());
   }
 
   Future<void> _deleteUserDataFromServer(UserModel user) async {
-    await firestoreInstance.collection('users').document(user.id).delete();
+    await firestoreInstance.collection('users').doc(user.id).delete();
   }
 
   Future<void> _uploadUserImageToServer(UserModel user) async {
     final newImage = File(user.photoUrl);
 
-    StorageUploadTask task =
+    UploadTask task =
         storage.ref().child(user.id + '.png').putFile(newImage);
 
-    final taskSnapshot = await task.onComplete;
+    final taskSnapshot = task.snapshot;
+
     user.photoUrl = await taskSnapshot.ref.getDownloadURL();
     print(user.photoUrl);
   }
 
   @override
   Future<void> registerNotificationsForUser(String currentUserId) {
-    firebaseMessaging.requestNotificationPermissions();
+    firebaseMessaging.requestPermission();
 
-    firebaseMessaging.configure(onMessage: (Map<String, dynamic> message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('onMessage: $message');
 
-      String chatGroupId = _getChatGroupId(message, currentUserId);
+      String chatGroupId = _getChatGroupId(message.data, currentUserId);
 
-      _showNotification(message['notification'], chatGroupId);
+      _showNotification(message.data['notification'], chatGroupId);
       return;
-    }, onResume: (Map<String, dynamic> message) {
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('onResume: $message');
 
       Routes.sailor.navigate(ChatPage.routeName, params: {
-        'peerId': message['data']['idFrom'],
-        'peerName': message['data']['peerName'],
-        'peerImageUrl': message['data']['peerImageUrl'],
-      });
-
-      return;
-    }, onLaunch: (Map<String, dynamic> message) {
-      print('onLaunch: $message');
-
-      Routes.sailor.navigate(ChatPage.routeName, params: {
-        'peerId': message['data']['idFrom'],
-        'peerName': message['data']['peerName'],
-        'peerImageUrl': message['data']['peerImageUrl'],
+        'peerId': message.data['data']['idFrom'],
+        'peerName': message.data['data']['peerName'],
+        'peerImageUrl': message.data['data']['peerImageUrl'],
       });
 
       return;
@@ -371,10 +364,10 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
 
     firebaseMessaging.getToken().then((token) {
       print('token: $token');
-      Firestore.instance
+      FirebaseFirestore.instance
           .collection('users')
-          .document(currentUserId)
-          .updateData({'pushToken': token});
+          .doc(currentUserId)
+          .update({'pushToken': token});
     }).catchError((err) {
       throw ServerException(
           message: 'Failed to complete the login process. please try again.');

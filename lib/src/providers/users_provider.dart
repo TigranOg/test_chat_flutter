@@ -6,61 +6,61 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 class UsersProvider extends ChangeNotifier {
-  final _firestore = serviceLocator<Firestore>();
+  final _firestore = serviceLocator<FirebaseFirestore>();
 
   Future<void> unFriendUser(String currentUserId, String friendId) async {
     final friendDoc =
-        await _firestore.collection('users').document(friendId).get();
+        await _firestore.collection('users').doc(friendId).get();
     final userDoc =
-        await _firestore.collection('users').document(currentUserId).get();
+        await _firestore.collection('users').doc(currentUserId).get();
 
     final friendFriends =
-        List<String>.from(json.decode(friendDoc.data['friends'] ?? '[]'));
+        List<String>.from(json.decode(friendDoc.data()['friends'] ?? '[]'));
     final userFriends =
-        List<String>.from(json.decode(userDoc.data['friends'] ?? '[]'));
+        List<String>.from(json.decode(userDoc.data()['friends'] ?? '[]'));
 
     userFriends.remove(friendId);
     friendFriends.remove(currentUserId);
 
     _firestore
         .collection('users')
-        .document(currentUserId)
-        .updateData({'friends': json.encode(userFriends)});
+        .doc(currentUserId)
+        .update({'friends': json.encode(userFriends)});
 
     _firestore
         .collection('users')
-        .document(friendId)
-        .updateData({'friends': json.encode(friendFriends)});
+        .doc(friendId)
+        .update({'friends': json.encode(friendFriends)});
   }
 
   Future<void> sendFriendRequest(String currentUserId, String friendId) async {
     final friendDoc =
-        await _firestore.collection('users').document(friendId).get();
+        await _firestore.collection('users').doc(friendId).get();
     final requests =
-        List<String>.from(json.decode(friendDoc.data['requests'] ?? '[]'));
+        List<String>.from(json.decode(friendDoc.data()['requests'] ?? '[]'));
 
     requests.add(currentUserId);
     _firestore
         .collection('users')
-        .document(friendId)
-        .updateData({'requests': json.encode(requests)});
+        .doc(friendId)
+        .update({'requests': json.encode(requests)});
   }
 
   Future<void> acceptFriendRequest(
       String currentUserId, String friendId) async {
     final friendDoc =
-        await _firestore.collection('users').document(friendId).get();
+        await _firestore.collection('users').doc(friendId).get();
     final friendRequests =
-        List<String>.from(json.decode(friendDoc.data['requests'] ?? '[]'));
+        List<String>.from(json.decode(friendDoc.data()['requests'] ?? '[]'));
     final friendFriends =
-        List<String>.from(json.decode(friendDoc.data['friends'] ?? '[]'));
+        List<String>.from(json.decode(friendDoc.data()['friends'] ?? '[]'));
 
     final userDoc =
-        await _firestore.collection('users').document(currentUserId).get();
+        await _firestore.collection('users').doc(currentUserId).get();
     final userRequests =
-        List<String>.from(json.decode(userDoc.data['requests'] ?? '[]'));
+        List<String>.from(json.decode(userDoc.data()['requests'] ?? '[]'));
     final userFriends =
-        List<String>.from(json.decode(userDoc.data['friends'] ?? '[]'));
+        List<String>.from(json.decode(userDoc.data()['friends'] ?? '[]'));
 
     friendRequests.remove(currentUserId);
     friendFriends.add(currentUserId);
@@ -68,13 +68,13 @@ class UsersProvider extends ChangeNotifier {
     userRequests.remove(friendId);
     userFriends.add(friendId);
 
-    _firestore.collection('users').document(currentUserId)
-      ..updateData({
+    _firestore.collection('users').doc(currentUserId)
+      ..update({
         'friends': json.encode(userFriends),
         'requests': json.encode(userRequests),
       });
 
-    _firestore.collection('users').document(friendId).updateData({
+    _firestore.collection('users').doc(friendId).update({
       'friends': json.encode(friendFriends),
       'requests': json.encode(friendRequests),
     });
@@ -83,18 +83,18 @@ class UsersProvider extends ChangeNotifier {
   Future<void> deleteFriendRequest(
       String currentUserId, String friendId) async {
     final userDoc =
-        await _firestore.collection('users').document(currentUserId).get();
+        await _firestore.collection('users').doc(currentUserId).get();
 
     final userRequests = List<String>.from(
-      json.decode(userDoc.data['requests'] ?? '[]'),
+      json.decode(userDoc.data()['requests'] ?? '[]'),
     );
 
     userRequests.remove(friendId);
 
     _firestore
         .collection('users')
-        .document(currentUserId)
-        .updateData({'requests': json.encode(userRequests)});
+        .doc(currentUserId)
+        .update({'requests': json.encode(userRequests)});
   }
 
   Future<Stream<List<DocumentSnapshot>>> getListOfFriends(
@@ -127,18 +127,18 @@ class UsersProvider extends ChangeNotifier {
 
           final userDocument = await _firestore
               .collection('users')
-              .document(currentUserId)
+              .doc(currentUserId)
               .get();
 
           final friendList = List<String>.from(
             json.decode(
-              (userDocument).data['friends'] ?? "[]",
+              (userDocument).data()['friends'] ?? "[]",
             ),
           );
 
           final requestList = List<String>.from(
             json.decode(
-              (userDocument).data['requests'] ?? "[]",
+              (userDocument).data()['requests'] ?? "[]",
             ),
           );
 
@@ -148,21 +148,21 @@ class UsersProvider extends ChangeNotifier {
           final _unFriendsList = List<DocumentSnapshot>();
           final _friendRequests = List<DocumentSnapshot>();
 
-          for (final doc in querySnapshot.documents) {
-            if (friendList.contains(doc.data['id']) ||
-                doc.data['id'] == currentUserId) {
+          for (final doc in querySnapshot.docs) {
+            if (friendList.contains(doc.data()['id']) ||
+                doc.data()['id'] == currentUserId) {
               _firendsList.add(doc);
             } else {
               final userRequests = List<String>.from(
-                json.decode(doc.data['requests'] ?? '[]'),
+                json.decode(doc.data()['requests'] ?? '[]'),
               );
 
-              if (!requestList.contains(doc.data['id']) &&
+              if (!requestList.contains(doc.data()['id']) &&
                   !userRequests.contains(currentUserId)) {
                 _unFriendsList.add(doc);
               }
 
-              if (requestList.contains(doc.data['id'])) {
+              if (requestList.contains(doc.data()['id'])) {
                 _friendRequests.add(doc);
               }
             }

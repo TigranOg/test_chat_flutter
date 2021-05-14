@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_facebook_login/flutter_facebook_login.dart';
@@ -29,6 +30,7 @@ final serviceLocator = GetIt.instance;
 
 Future<void> init() async {
   //! Features - UserAccout(Login)
+  await Firebase.initializeApp();
 
   serviceLocator.registerFactory(
     () => LoginBloc(
@@ -107,7 +109,7 @@ Future<void> init() async {
   serviceLocator.registerLazySingleton(() => http.Client());
   serviceLocator.registerLazySingleton(() => GoogleSignIn());
   serviceLocator.registerLazySingleton(() => FirebaseAuth.instance);
-  serviceLocator.registerLazySingleton(() => Firestore.instance);
+  serviceLocator.registerLazySingleton(() => FirebaseFirestore.instance);
   serviceLocator.registerLazySingleton(() => FirebaseStorage.instance);
   serviceLocator.registerLazySingleton(() => FirebaseMessaging());
   final sharedPreferences = await SharedPreferences.getInstance();

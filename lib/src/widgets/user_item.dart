@@ -57,18 +57,18 @@ class _UserItemState extends State<UserItem> {
                 ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(10.0),
-                    child: widget.userDocument.data['photoUrl'] == null ||
-                            widget.userDocument.data['photoUrl'].isEmpty
+                    child: widget.userDocument.data()['photoUrl'] == null ||
+                            widget.userDocument.data()['photoUrl'].isEmpty
                         ? Image.asset('assets/images/icon_user.png')
                         : CachedNetworkImage(
-                            imageUrl: widget.userDocument.data['photoUrl'],
+                            imageUrl: widget.userDocument.data()['photoUrl'],
                             height: 50.0,
                             width: 50.0,
                             fit: BoxFit.fill,
                           ),
                   ),
                   title: Text(
-                    widget.userDocument.data['displayName'],
+                    widget.userDocument.data()['displayName'],
                     style: Theme.of(context).textTheme.title.copyWith(
                           color: Theme.of(context).primaryColor,
                           fontWeight: FontWeight.bold,
@@ -76,7 +76,7 @@ class _UserItemState extends State<UserItem> {
                         ),
                   ),
                   subtitle: Text(
-                    widget.userDocument.data['email'],
+                    widget.userDocument.data()['email'],
                   ),
                 ),
                 SingleChildScrollView(
@@ -148,9 +148,9 @@ class _UserItemState extends State<UserItem> {
 
   void _openChatPage() {
     Routes.sailor.navigate(ChatPage.routeName, params: {
-      'peerId': widget.userDocument.data['id'],
-      'peerName': widget.userDocument.data['displayName'],
-      'peerImageUrl': widget.userDocument.data['photoUrl'],
+      'peerId': widget.userDocument.data()['id'],
+      'peerName': widget.userDocument.data()['displayName'],
+      'peerImageUrl': widget.userDocument.data()['photoUrl'],
     });
   }
 }

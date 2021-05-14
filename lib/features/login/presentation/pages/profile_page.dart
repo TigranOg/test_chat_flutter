@@ -45,9 +45,9 @@ class _ProfilePageState extends State<ProfilePage> {
       user = _getCurrentUserData();
       return Stream.value(user);
     } else {
-      return serviceLocator<Firestore>()
+      return serviceLocator<FirebaseFirestore>()
           .collection('users')
-          .document(widget.userId)
+          .doc(widget.userId)
           .snapshots();
     }
   }

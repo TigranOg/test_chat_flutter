@@ -92,15 +92,15 @@ class UsersSearchDelegate extends SearchDelegate<String> {
           isRequest: usersType == UsersType.friendRequests,
           onAddFriendPressed: () => _sendFriendRequestCallback(
             context,
-            usersDataList[index].data['id'],
+            usersDataList[index].data()['id'],
           ),
           onAcceptRequestPressed: () => _acceptFriendRequest(
             context,
-            usersDataList[index].data['id'],
+            usersDataList[index].data()['id'],
           ),
           onDeleteRequestPressed: () => _deleteRequestPressed(
             context,
-            usersDataList[index].data['id'],
+            usersDataList[index].data()['id'],
           ),
         );
       },
@@ -113,7 +113,7 @@ class UsersSearchDelegate extends SearchDelegate<String> {
   }
 
   void _acceptFriendRequest(context, String friendId) {
-    usersData.removeWhere((element) => element.data['id'] == friendId);
+    usersData.removeWhere((element) => element.data()['id'] == friendId);
 
     Provider.of<UsersProvider>(context, listen: false)
         .acceptFriendRequest(userId, friendId);

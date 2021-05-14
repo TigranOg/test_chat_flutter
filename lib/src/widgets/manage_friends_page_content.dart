@@ -106,15 +106,15 @@ class ManageFriendsPageContent extends StatelessWidget {
           isRequest: contentType == UsersType.friendRequests,
           onAddFriendPressed: () => _sendFriendRequestCallback(
             context,
-            usersDocs[index].data['id'],
+            usersDocs[index].data()['id'],
           ),
           onAcceptRequestPressed: () => _acceptFriendRequest(
             context,
-            usersDocs[index].data['id'],
+            usersDocs[index].data()['id'],
           ),
           onDeleteRequestPressed: () => _deleteRequestPressed(
             context,
-            usersDocs[index].data['id'],
+            usersDocs[index].data()['id'],
           ),
         );
       },

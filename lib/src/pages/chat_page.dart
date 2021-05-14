@@ -66,10 +66,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _setChattingWithValue() {
-    Firestore.instance
+    FirebaseFirestore.instance
         .collection('users')
-        .document(userId)
-        .updateData({'chattingWith': widget.peerId});
+        .doc(userId)
+        .update({'chattingWith': widget.peerId});
   }
 
   _readUserData() {
@@ -182,12 +182,13 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<Map<String, String>> _uplaodImageToServer(List<int> imageData) async {
     final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    StorageUploadTask task = FirebaseStorage.instance
+    UploadTask task = FirebaseStorage.instance
         .ref()
         .child(chatGroupId + '-' + fileName)
         .putData(imageData);
 
-    final taskSnapshot = await task.onComplete;
+    final taskSnapshot = task.snapshot;
+
     return {
       'url': await taskSnapshot.ref.getDownloadURL(),
       'fileName': fileName,
@@ -195,15 +196,15 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _sendMessage(Message message) async {
-    final documentReference = Firestore.instance
+    final documentReference = FirebaseFirestore.instance
         .collection('messages')
-        .document(chatGroupId)
+        .doc(chatGroupId)
         .collection(chatGroupId)
-        .document(message.timestamp);
+        .doc(message.timestamp);
 
-    Firestore.instance.runTransaction((transaction) async {
+    FirebaseFirestore.instance.runTransaction((transaction) async {
       final documentSnaphshot = await transaction.get(documentReference);
-      await transaction.set(documentSnaphshot.reference, message.toMap());
+      transaction.set(documentSnaphshot.reference, message.toMap());
     });
 
     // if (message.type == MessageType.sticker) {
@@ -322,9 +323,9 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildMessagesList() {
     return StreamBuilder(
-      stream: Firestore.instance
+      stream: FirebaseFirestore.instance
           .collection('messages')
-          .document(chatGroupId)
+          .doc(chatGroupId)
           .collection(chatGroupId)
           .orderBy('timestamp', descending: true)
           .limit(30)
@@ -336,7 +337,7 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
 
-        if (snapshot.data.documentChanges.isEmpty) {
+        if (snapshot.data.docChanges.isEmpty) {
           return EmptyChatMessage(
             peerName: widget.peerName,
           );
@@ -346,22 +347,22 @@ class _ChatPageState extends State<ChatPage> {
           controller: listScrollController,
           reverse: true,
           itemCount: _isSendingImages
-              ? snapshot.data.documents.length + 1
-              : snapshot.data.documents.length,
+              ? snapshot.data.docs.length + 1
+              : snapshot.data.docs.length,
           itemBuilder: (ctx, index) {
             if (index == 0 && _isSendingImages) {
               return _buildDummyMessage();
             }
 
             final lastMessage =
-                Message.fromJson(snapshot.data.documents.first.data);
+                Message.fromJson(snapshot.data.docs.first.data());
 
             _markPeerMessagesAsRead(lastMessage);
 
             return Padding(
               padding: const EdgeInsets.all(5.0),
               child: _buildMessageItem(snapshot
-                  .data.documents[_isSendingImages ? index - 1 : index]),
+                  .data.docs[_isSendingImages ? index - 1 : index]),
             );
           },
         );
@@ -372,18 +373,18 @@ class _ChatPageState extends State<ChatPage> {
   void _markPeerMessagesAsRead(Message lastMessage) {
     if (lastMessage.idFrom == widget.peerId) {
       print('Entered');
-      Firestore.instance
+      FirebaseFirestore.instance
           .collection('messages')
-          .document(chatGroupId)
+          .doc(chatGroupId)
           .collection(chatGroupId)
           .where('idFrom', isEqualTo: widget.peerId)
           .where('isRead', isEqualTo: false)
-          .getDocuments()
+          .get()
           .then((documentSnapshot) {
-        print(documentSnapshot.documents.length);
-        if (documentSnapshot.documents.length > 0) {
-          for (DocumentSnapshot doc in documentSnapshot.documents) {
-            doc.reference.updateData({'isRead': true});
+        print(documentSnapshot.docs.length);
+        if (documentSnapshot.docs.length > 0) {
+          for (DocumentSnapshot doc in documentSnapshot.docs) {
+            doc.reference.update({'isRead': true});
             print('updated');
           }
         }
@@ -392,7 +393,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessageItem(DocumentSnapshot document) {
-    final message = Message.fromJson(document.data);
+    final message = Message.fromJson(document.data());
 
     switch (message.type) {
       case MessageType.text:
@@ -853,10 +854,10 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    Firestore.instance
+    FirebaseFirestore.instance
         .collection('users')
-        .document(userId)
-        .updateData({'chattingWith': null});
+        .doc(userId)
+        .update({'chattingWith': null});
     super.dispose();
   }
 }
