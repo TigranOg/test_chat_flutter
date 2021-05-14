@@ -1,1 +1,39 @@
-REPLACE THIS WITH YOUR FILE
+{
+  "project_info": {
+    "project_number": "732739311009",
+    "project_id": "flutterchattest-e484a",
+    "storage_bucket": "flutterchattest-e484a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:732739311009:android:52d0dca28f6efab59927e0",
+        "android_client_info": {
+          "package_name": "com.example.chat_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "732739311009-2f348jdd5ra5qen6p474llgt10rpgqi5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4KUft-ZjQ337ldJxd-9RjXWOM-86ZPAE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "732739311009-2f348jdd5ra5qen6p474llgt10rpgqi5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
