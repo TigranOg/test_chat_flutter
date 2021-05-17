@@ -196,6 +196,8 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _sendMessage(Message message) async {
+    //TODO save message into SQLite. Save as JSON?
+
     final documentReference = FirebaseFirestore.instance
         .collection('messages')
         .doc(chatGroupId)
@@ -322,13 +324,27 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessagesList() {
+    //TODO
+    //Load saved messaged from SQLite
+    List<Map<String, dynamic>> messagesFromDB = [];
+    _mockStoredMessages(messagesFromDB);
+
+    //TODO delete mock messages after SQLite is done
+    //Mock messages imitating cached messages
+    List<Map<String, dynamic>> allMessages = [];
+    allMessages.addAll(messagesFromDB);
+
+    //TODO
+    //Load last saved timestamp from SQLite
+    String lastSavedTimestampFromDB = '1621205270677';
+
     return StreamBuilder(
       stream: FirebaseFirestore.instance
           .collection('messages')
           .doc(chatGroupId)
           .collection(chatGroupId)
           .orderBy('timestamp', descending: true)
-          .limit(30)
+          .where('timestamp', isGreaterThanOrEqualTo: lastSavedTimestampFromDB)
           .snapshots(),
       builder: (ctx, AsyncSnapshot<QuerySnapshot> snapshot) {
         if (!snapshot.hasData) {
@@ -343,12 +359,19 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
 
+        if (snapshot.hasData) {
+          allMessages.clear();
+          allMessages.addAll(messagesFromDB);
+          snapshot.data.docs.forEach((element) {
+            allMessages.add(element.data());
+          });
+        }
+
         return ListView.builder(
           controller: listScrollController,
           reverse: true,
-          itemCount: _isSendingImages
-              ? snapshot.data.docs.length + 1
-              : snapshot.data.docs.length,
+          itemCount:
+              _isSendingImages ? allMessages.length + 1 : allMessages.length,
           itemBuilder: (ctx, index) {
             if (index == 0 && _isSendingImages) {
               return _buildDummyMessage();
@@ -359,10 +382,12 @@ class _ChatPageState extends State<ChatPage> {
 
             _markPeerMessagesAsRead(lastMessage);
 
+            // snapshot.data.docs.add(value)
+
             return Padding(
               padding: const EdgeInsets.all(5.0),
-              child: _buildMessageItem(snapshot
-                  .data.docs[_isSendingImages ? index - 1 : index]),
+              child: _buildMessageItem(
+                  allMessages.elementAt(_isSendingImages ? index - 1 : index)),
             );
           },
         );
@@ -392,8 +417,8 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Widget _buildMessageItem(DocumentSnapshot document) {
-    final message = Message.fromJson(document.data());
+  Widget _buildMessageItem(Map<String, dynamic> document) {
+    final message = Message.fromJson(document);
 
     switch (message.type) {
       case MessageType.text:
@@ -859,5 +884,38 @@ class _ChatPageState extends State<ChatPage> {
         .doc(userId)
         .update({'chattingWith': null});
     super.dispose();
+  }
+
+  void _mockStoredMessages(List<Map<String, dynamic>> messages) {
+    messages.add({
+      'content': '1111111111',
+      'idFrom': '90cT6dgdgJOtrZWP2QylYS1xOqY2',
+      'idTo': 'qf4GojFHYGOrbOX7Aw6kQ8Nucu02',
+      'isRead': true,
+      'timestamp': '1620998172211',
+      'type': 0
+    }); messages.add({
+      'content': '222222222222',
+      'idFrom': '90cT6dgdgJOtrZWP2QylYS1xOqY2',
+      'idTo': 'qf4GojFHYGOrbOX7Aw6kQ8Nucu02',
+      'isRead': true,
+      'timestamp': '1620998172211',
+      'type': 0
+    }); messages.add({
+      'content': '333333333333333',
+      'idFrom': '90cT6dgdgJOtrZWP2QylYS1xOqY2',
+      'idTo': 'qf4GojFHYGOrbOX7Aw6kQ8Nucu02',
+      'isRead': true,
+      'timestamp': '1620998172211',
+      'type': 0
+    });
+    messages.add({
+      'content': '4444444444444444',
+      'idFrom': '90cT6dgdgJOtrZWP2QylYS1xOqY2',
+      'idTo': 'qf4GojFHYGOrbOX7Aw6kQ8Nucu02',
+      'isRead': true,
+      'timestamp': '1620998172211',
+      'type': 0
+    });
   }
 }
