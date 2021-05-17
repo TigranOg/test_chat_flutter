@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -46,12 +47,23 @@ class _ChatPageState extends State<ChatPage> {
   ScrollController listScrollController = ScrollController();
   SharedPreferences prefs;
 
+  //This stream will listen to Firebase stream, and will mix stored messages and messages from Firebase, if any.
+  StreamController<List<Map<String, dynamic>>> _firebaseStreamToCustomStream =
+      StreamController<List<Map<String, dynamic>>>();
+
+  //TODO Load saved messaged from SQLite
+  List<Map<String, dynamic>> _cachedMessages = [];
+
+
   @override
   void initState() {
     _readUserData();
     _focusNode.addListener(_onFocusChanged);
 
     _setChattingWithValue();
+
+    _mockStoredMessages(_cachedMessages);
+    _firebaseStreamToCustomStream.add(_cachedMessages);
 
     super.initState();
   }
@@ -324,75 +336,48 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessagesList() {
-    //TODO
-    //Load saved messaged from SQLite
-    List<Map<String, dynamic>> messagesFromDB = [];
-    _mockStoredMessages(messagesFromDB);
+    //TODO Load last saved timestamp from SQLite
+    int timestamp = DateTime.now().millisecondsSinceEpoch - 2 * 60 * 60 * 1000;
+    String lastSavedTimestampFromDB = '$timestamp';
 
-    //TODO delete mock messages after SQLite is done
-    //Mock messages imitating cached messages
-    List<Map<String, dynamic>> allMessages = [];
-    allMessages.addAll(messagesFromDB);
+    final firebaseStream = FirebaseFirestore.instance
+        .collection('messages')
+        .doc(chatGroupId)
+        .collection(chatGroupId)
+        .orderBy('timestamp', descending: true)
+        .where('timestamp', isGreaterThanOrEqualTo: lastSavedTimestampFromDB)
+        .snapshots();
 
-    //TODO
-    //Load last saved timestamp from SQLite
-    String lastSavedTimestampFromDB = '1621205270677';
+    firebaseStream.listen((event) {
+      if (event.docs.isNotEmpty) {
+        event.docs.forEach((element) {
+          _cachedMessages.add(element.data());
+        });
+      }
+      _firebaseStreamToCustomStream.add(_cachedMessages);
+    });
 
     return StreamBuilder(
-      stream: FirebaseFirestore.instance
-          .collection('messages')
-          .doc(chatGroupId)
-          .collection(chatGroupId)
-          .orderBy('timestamp', descending: true)
-          .where('timestamp', isGreaterThanOrEqualTo: lastSavedTimestampFromDB)
-          .snapshots(),
-      builder: (ctx, AsyncSnapshot<QuerySnapshot> snapshot) {
-        if (!snapshot.hasData) {
-          return Center(
-            child: CircularProgressIndicator(),
+        stream: _firebaseStreamToCustomStream.stream,
+        builder: (BuildContext context,
+            AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
+          return ListView.builder(
+            controller: listScrollController,
+            reverse: true,
+            itemCount:
+                _isSendingImages ? snapshot.data.length + 1 : snapshot.data.length,
+            itemBuilder: (ctx, index) {
+              if (index == 0 && _isSendingImages) {
+                return _buildDummyMessage();
+              }
+              return Padding(
+                padding: const EdgeInsets.all(5.0),
+                child: _buildMessageItem(snapshot.data
+                    .elementAt(_isSendingImages ? index - 1 : index)),
+              );
+            },
           );
-        }
-
-        if (snapshot.data.docChanges.isEmpty) {
-          return EmptyChatMessage(
-            peerName: widget.peerName,
-          );
-        }
-
-        if (snapshot.hasData) {
-          allMessages.clear();
-          allMessages.addAll(messagesFromDB);
-          snapshot.data.docs.forEach((element) {
-            allMessages.add(element.data());
-          });
-        }
-
-        return ListView.builder(
-          controller: listScrollController,
-          reverse: true,
-          itemCount:
-              _isSendingImages ? allMessages.length + 1 : allMessages.length,
-          itemBuilder: (ctx, index) {
-            if (index == 0 && _isSendingImages) {
-              return _buildDummyMessage();
-            }
-
-            final lastMessage =
-                Message.fromJson(snapshot.data.docs.first.data());
-
-            _markPeerMessagesAsRead(lastMessage);
-
-            // snapshot.data.docs.add(value)
-
-            return Padding(
-              padding: const EdgeInsets.all(5.0),
-              child: _buildMessageItem(
-                  allMessages.elementAt(_isSendingImages ? index - 1 : index)),
-            );
-          },
-        );
-      },
-    );
+        });
   }
 
   void _markPeerMessagesAsRead(Message lastMessage) {
@@ -883,6 +868,9 @@ class _ChatPageState extends State<ChatPage> {
         .collection('users')
         .doc(userId)
         .update({'chattingWith': null});
+
+    _firebaseStreamToCustomStream.close();
+
     super.dispose();
   }
 
@@ -894,14 +882,16 @@ class _ChatPageState extends State<ChatPage> {
       'isRead': true,
       'timestamp': '1620998172211',
       'type': 0
-    }); messages.add({
+    });
+    messages.add({
       'content': '222222222222',
       'idFrom': '90cT6dgdgJOtrZWP2QylYS1xOqY2',
       'idTo': 'qf4GojFHYGOrbOX7Aw6kQ8Nucu02',
       'isRead': true,
       'timestamp': '1620998172211',
       'type': 0
-    }); messages.add({
+    });
+    messages.add({
       'content': '333333333333333',
       'idFrom': '90cT6dgdgJOtrZWP2QylYS1xOqY2',
       'idTo': 'qf4GojFHYGOrbOX7Aw6kQ8Nucu02',
