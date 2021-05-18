@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chat_app/db/model/chat_latest_timestamp.dart';
+import 'package:chat_app/db/sqlite.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -47,25 +49,45 @@ class _ChatPageState extends State<ChatPage> {
   ScrollController listScrollController = ScrollController();
   SharedPreferences prefs;
 
+  //For cache
+
+  ChatLatestTimestamp _chatLatestTimestamp;
+
   //This stream will listen to Firebase stream, and will mix stored messages and messages from Firebase, if any.
   StreamController<List<Map<String, dynamic>>> _firebaseStreamToCustomStream =
       StreamController<List<Map<String, dynamic>>>();
 
   //TODO Load saved messaged from SQLite
+  bool isLoading = true;
   List<Map<String, dynamic>> _cachedMessages = [];
-
 
   @override
   void initState() {
     _readUserData();
+
     _focusNode.addListener(_onFocusChanged);
 
     _setChattingWithValue();
 
     _mockStoredMessages(_cachedMessages);
-    _firebaseStreamToCustomStream.add(_cachedMessages);
+    // _firebaseStreamToCustomStream.add(_cachedMessages);
+
+    _getDataFromDB();
 
     super.initState();
+  }
+
+  Future _getDataFromDB() async {
+    setState(() => isLoading = true);
+
+    _chatLatestTimestamp =
+        await SqliteDB.instance.readChatLatestTimestamp(chatGroupId);
+
+    setState(() => isLoading = false);
+
+
+
+    print(_chatLatestTimestamp);
   }
 
   void _onFocusChanged() {
@@ -208,7 +230,9 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _sendMessage(Message message) async {
-    //TODO save message into SQLite. Save as JSON?
+    //TODO save message into SQLite. Save timestamp.
+    _chatLatestTimestamp.timestamp = DateTime.now().millisecondsSinceEpoch;
+    await SqliteDB.instance.createOrReplace(_chatLatestTimestamp);
 
     final documentReference = FirebaseFirestore.instance
         .collection('messages')
@@ -265,7 +289,7 @@ class _ChatPageState extends State<ChatPage> {
           },
         ),
       ),
-      body: _buildChatBody(),
+      body: isLoading ? Center(child: CircularProgressIndicator()) : _buildChatBody(),
     );
   }
 
@@ -337,7 +361,9 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildMessagesList() {
     //TODO Load last saved timestamp from SQLite
-    int timestamp = DateTime.now().millisecondsSinceEpoch - 2 * 60 * 60 * 1000;
+    // int timestamp = DateTime.now().millisecondsSinceEpoch - 2 * 60 * 60 * 1000;
+    int timestamp = _chatLatestTimestamp.timestamp;
+
     String lastSavedTimestampFromDB = '$timestamp';
 
     final firebaseStream = FirebaseFirestore.instance
@@ -364,8 +390,9 @@ class _ChatPageState extends State<ChatPage> {
           return ListView.builder(
             controller: listScrollController,
             reverse: true,
-            itemCount:
-                _isSendingImages ? snapshot.data.length + 1 : snapshot.data.length,
+            itemCount: _isSendingImages
+                ? snapshot.data.length + 1
+                : snapshot.data.length,
             itemBuilder: (ctx, index) {
               if (index == 0 && _isSendingImages) {
                 return _buildDummyMessage();
@@ -870,6 +897,9 @@ class _ChatPageState extends State<ChatPage> {
         .update({'chattingWith': null});
 
     _firebaseStreamToCustomStream.close();
+
+    //TODO
+    // SqliteDB.instance.close();
 
     super.dispose();
   }
