@@ -1,4 +1,5 @@
 import 'package:chat_app/db/model/chat_latest_timestamp.dart';
+import 'package:chat_app/src/models/message.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -20,11 +21,17 @@ class SqliteDB {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(path, version: 2, onCreate: _createDB, onUpgrade: _onUpgrade);
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (newVersion == 2)
+      await db.execute(Message.createQuery);
   }
 
   Future _createDB(Database db, int version) async {
     await db.execute(ChatLatestTimestamp.createQuery);
+    await db.execute(Message.createQuery);
   }
 
   Future close() async {
@@ -83,5 +90,6 @@ class SqliteDB {
     );
   }
 
-  ///
+  ///Message model
+///
 }

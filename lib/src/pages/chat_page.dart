@@ -368,7 +368,7 @@ class _ChatPageState extends State<ChatPage> {
 
     firebaseStream.listen((event) {
 
-      if(_lastSnapshotId == event.docChanges.first.doc.id) {
+      if(_lastSnapshotId != event.docChanges.first.doc.id) {
         _allMessages.add(event.docChanges.first.doc.data());
         _lastSnapshotId = event.docChanges.first.doc.id;
 
@@ -425,7 +425,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessageItem(Map<String, dynamic> document) {
-    final message = Message.fromJson(document);
+    final message = Message.fromMap(document);
 
     switch (message.type) {
       case MessageType.text:
