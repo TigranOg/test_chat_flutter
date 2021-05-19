@@ -49,45 +49,38 @@ class _ChatPageState extends State<ChatPage> {
   ScrollController listScrollController = ScrollController();
   SharedPreferences prefs;
 
-  //For cache
-
+  //For cache task
+  bool isLoading = true;
   ChatLatestTimestamp _chatLatestTimestamp;
+  List<Map<String, dynamic>> _allMessages = [];
+  String _lastSnapshotId = '';
 
   //This stream will listen to Firebase stream, and will mix stored messages and messages from Firebase, if any.
   StreamController<List<Map<String, dynamic>>> _firebaseStreamToCustomStream =
       StreamController<List<Map<String, dynamic>>>();
 
-  //TODO Load saved messaged from SQLite
-  bool isLoading = true;
-  List<Map<String, dynamic>> _cachedMessages = [];
-
   @override
   void initState() {
     _readUserData();
-
     _focusNode.addListener(_onFocusChanged);
-
     _setChattingWithValue();
 
-    _mockStoredMessages(_cachedMessages);
-    // _firebaseStreamToCustomStream.add(_cachedMessages);
-
-    _getDataFromDB();
+    _getChatDataFromDB();
 
     super.initState();
   }
 
-  Future _getDataFromDB() async {
+  Future _getChatDataFromDB() async {
     setState(() => isLoading = true);
 
     _chatLatestTimestamp =
         await SqliteDB.instance.readChatLatestTimestamp(chatGroupId);
 
+    //TODO Load cached messages
+    // List<Map<String, dynamic>> _cachedMessages = await SqliteDB.instance.readAllChatMessages(chatGroupId);
+    // _firebaseStreamToCustomStream.add(_cachedMessages);
+
     setState(() => isLoading = false);
-
-
-
-    print(_chatLatestTimestamp);
   }
 
   void _onFocusChanged() {
@@ -230,7 +223,8 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _sendMessage(Message message) async {
-    //TODO save message into SQLite. Save timestamp.
+    //TODO Save a message and its timestamp in SQLite DB.
+
     _chatLatestTimestamp.timestamp = DateTime.now().millisecondsSinceEpoch;
     await SqliteDB.instance.createOrReplace(_chatLatestTimestamp);
 
@@ -360,8 +354,6 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessagesList() {
-    //TODO Load last saved timestamp from SQLite
-    // int timestamp = DateTime.now().millisecondsSinceEpoch - 2 * 60 * 60 * 1000;
     int timestamp = _chatLatestTimestamp.timestamp;
 
     String lastSavedTimestampFromDB = '$timestamp';
@@ -375,12 +367,15 @@ class _ChatPageState extends State<ChatPage> {
         .snapshots();
 
     firebaseStream.listen((event) {
-      if (event.docs.isNotEmpty) {
-        event.docs.forEach((element) {
-          _cachedMessages.add(element.data());
-        });
+
+      if(_lastSnapshotId == event.docChanges.first.doc.id) {
+        _allMessages.add(event.docChanges.first.doc.data());
+        _lastSnapshotId = event.docChanges.first.doc.id;
+
+        //TODO Save a message and its timestamp in SQLite DB.
       }
-      _firebaseStreamToCustomStream.add(_cachedMessages);
+
+      _firebaseStreamToCustomStream.add(_allMessages);
     });
 
     return StreamBuilder(
@@ -898,7 +893,7 @@ class _ChatPageState extends State<ChatPage> {
 
     _firebaseStreamToCustomStream.close();
 
-    //TODO
+    //TODO close here or in MyApp widget?
     // SqliteDB.instance.close();
 
     super.dispose();

@@ -33,7 +33,9 @@ class SqliteDB {
     db.close();
   }
 
-  //CRUD queries goes here
+  ///CRUD queries goes here
+  ///
+  ///ChatLatestTimestamp model
   Future<List<ChatLatestTimestamp>> readAllChatLatestTimestamp() async {
     final db = await instance.database;
 
@@ -81,4 +83,5 @@ class SqliteDB {
     );
   }
 
+  ///
 }
